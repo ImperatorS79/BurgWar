@@ -9,7 +9,12 @@
 
 #include <Shared/NetworkReactor.hpp>
 #include <Client/ServerCommandStore.hpp>
+#include <Nazara/Graphics/Sprite.hpp>
+#include <Nazara/Math/Angle.hpp>
+#include <Nazara/Renderer/RenderWindow.hpp>
 #include <NDK/Application.hpp>
+#include <NDK/Entity.hpp>
+#include <NDK/World.hpp>
 #include <vector>
 
 namespace bw
@@ -46,8 +51,22 @@ namespace bw
 			std::vector<std::unique_ptr<NetworkReactor>> m_reactors;
 			std::vector<ServerConnection*> m_servers;
 			ServerCommandStore m_commandStore;
+			Ndk::EntityHandle m_camera;
+			Ndk::EntityHandle m_burger;
+			Ndk::EntityHandle m_weapon;
+			Ndk::World& m_world;
+			Nz::DegreeAnglef m_attackOriginAngle;
+			Nz::RenderWindow& m_mainWindow;
+			Nz::SpriteRef m_burgerSprite;
+			Nz::SpriteRef m_weaponSprite;
 			Nz::UInt64 m_appTime;
 			Nz::UInt64 m_lastTime;
+			bool m_isAttacking;
+			bool m_isTargetingRight;
+			bool m_isFacingRight;
+			bool m_isOnGround;
+			bool m_isMoving;
+			float m_attackTimer;
 	};
 }
 
