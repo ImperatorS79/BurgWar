@@ -52,12 +52,15 @@ namespace bw
 
 			template<typename T> void SendPacket(const T& packet);
 
+			inline void UpdateServerTimeDelta(Nz::UInt64 deltaTime);
+
 			ClientSession& operator=(const ClientSession&) = delete;
 			ClientSession& operator=(ClientSession&&) = delete;
 
 			NazaraSignal(OnConnected, ClientSession* /*server*/);
 			NazaraSignal(OnConnectionInfoUpdate, ClientSession* /*server*/, const ConnectionInfo& /*info*/);
 			NazaraSignal(OnDisconnected, ClientSession* /*server*/);
+			NazaraSignal(OnTimeSyncResponse, ClientSession* /*session*/, const Packets::TimeSyncResponse& /*response*/);
 
 			struct ConnectionInfo
 			{
@@ -84,6 +87,7 @@ namespace bw
 			void HandleIncomingPacket(Packets::MatchData&& packet);
 			void HandleIncomingPacket(Packets::MatchState&& packet);
 			void HandleIncomingPacket(Packets::NetworkStrings&& packet);
+			void HandleIncomingPacket(Packets::TimeSyncResponse&& packet);
 
 			void OnSessionConnected();
 			void OnSessionDisconnected();

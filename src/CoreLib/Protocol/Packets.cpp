@@ -316,8 +316,8 @@ namespace bw
 		void Serialize(PacketSerializer& serializer, MatchData& data)
 		{
 			serializer &= data.currentTick;
+			serializer &= data.appTime;
 			serializer &= data.tickDuration;
-
 			serializer &= data.gamemodePath;
 
 			serializer.SerializeArraySize(data.layers);
@@ -413,6 +413,17 @@ namespace bw
 
 		void Serialize(PacketSerializer& /*serializer*/, Ready& /*data*/)
 		{
+		}
+
+		void Serialize(PacketSerializer& serializer, TimeSyncRequest& data)
+		{
+			serializer &= data.requestId;
+		}
+
+		void Serialize(PacketSerializer& serializer, TimeSyncResponse& data)
+		{
+			serializer &= data.requestId;
+			serializer &= data.serverTime;
 		}
 
 		void Serialize(PacketSerializer& serializer, InputData& input)

@@ -52,6 +52,7 @@ namespace bw
 			void HandleIncomingPacket(const Packets::HelloWorld& packet);
 			void HandleIncomingPacket(const Packets::PlayersInput& packet);
 			void HandleIncomingPacket(const Packets::Ready& packet);
+			void HandleIncomingPacket(const Packets::TimeSyncRequest& packet);
 
 			Match& m_match;
 			PlayerCommandStore& m_commandStore;

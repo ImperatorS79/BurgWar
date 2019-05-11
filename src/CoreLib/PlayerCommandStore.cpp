@@ -22,23 +22,25 @@ namespace bw
 		IncomingCommand(HelloWorld);
 		IncomingCommand(PlayersInput);
 		IncomingCommand(Ready);
+		IncomingCommand(TimeSyncRequest);
 
 		// Outgoing commands
-		OutgoingCommand(AuthFailure,                  Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(AuthSuccess,                  Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(ClientScriptList,             Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(ControlEntity,                Nz::ENetPacketFlag_Reliable, 1);
-		OutgoingCommand(CreateEntities,               Nz::ENetPacketFlag_Reliable, 1);
-		OutgoingCommand(DeleteEntities,               Nz::ENetPacketFlag_Reliable, 1);
-		OutgoingCommand(DownloadClientScriptResponse, Nz::ENetPacketFlag_Reliable, 1);
-		OutgoingCommand(EntitiesAnimation,            Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(EntitiesInputs,               Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(HealthUpdate,                 Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(HelloWorld,                   Nz::ENetPacketFlag_Reliable, 0);
+		OutgoingCommand(AuthFailure,                  Nz::ENetPacketFlag_Reliable,    0);
+		OutgoingCommand(AuthSuccess,                  Nz::ENetPacketFlag_Reliable,    0);
+		OutgoingCommand(ClientScriptList,             Nz::ENetPacketFlag_Reliable,    0);
+		OutgoingCommand(ControlEntity,                Nz::ENetPacketFlag_Reliable,    1);
+		OutgoingCommand(CreateEntities,               Nz::ENetPacketFlag_Reliable,    1);
+		OutgoingCommand(DeleteEntities,               Nz::ENetPacketFlag_Reliable,    1);
+		OutgoingCommand(DownloadClientScriptResponse, Nz::ENetPacketFlag_Reliable,    1);
+		OutgoingCommand(EntitiesAnimation,            Nz::ENetPacketFlag_Reliable,    0);
+		OutgoingCommand(EntitiesInputs,               Nz::ENetPacketFlag_Reliable,    0);
+		OutgoingCommand(HealthUpdate,                 Nz::ENetPacketFlag_Reliable,    0);
+		OutgoingCommand(HelloWorld,                   Nz::ENetPacketFlag_Reliable,    0);
 		OutgoingCommand(InputTimingCorrection,        Nz::ENetPacketFlag_Unsequenced, 0);
-		OutgoingCommand(MatchData,                    Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(MatchState,                   0,                           1);
-		OutgoingCommand(NetworkStrings,               Nz::ENetPacketFlag_Reliable, 0);
+		OutgoingCommand(MatchData,                    Nz::ENetPacketFlag_Reliable,    0);
+		OutgoingCommand(MatchState,                   Nz::ENetPacketFlag_Unreliable,  1);
+		OutgoingCommand(NetworkStrings,               Nz::ENetPacketFlag_Reliable,    0);
+		OutgoingCommand(TimeSyncResponse,             Nz::ENetPacketFlag_Unreliable,  0);
 
 #undef IncomingCommand
 #undef OutgoingCommand

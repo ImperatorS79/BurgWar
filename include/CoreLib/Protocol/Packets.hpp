@@ -45,7 +45,9 @@ namespace bw
 		MatchState,
 		NetworkStrings,
 		PlayersInput,
-		Ready
+		Ready,
+		TimeSyncRequest,
+		TimeSyncResponse
 	};
 
 	template<PacketType PT> struct PacketTag
@@ -168,6 +170,18 @@ namespace bw
 			std::vector<Nz::UInt8> fileContent;
 		};
 
+		DeclarePacket(EntitiesAnimation)
+		{
+			struct Entity
+			{
+				CompressedUnsigned<Nz::UInt32> entityId;
+				Nz::UInt8 animId;
+			};
+
+			Nz::UInt16 stateTick;
+			std::vector<Entity> entities;
+		};
+
 		DeclarePacket(EntitiesInputs)
 		{
 			struct Entity
@@ -213,6 +227,7 @@ namespace bw
 			std::vector<Layer> layers;
 			std::string gamemodePath;
 			Nz::UInt16 currentTick;
+			CompressedUnsigned<Nz::UInt64> appTime;
 			float tickDuration;
 		};
 
@@ -248,18 +263,6 @@ namespace bw
 			std::vector<std::string> strings;
 		};
 
-		DeclarePacket(EntitiesAnimation)
-		{
-			struct Entity
-			{
-				CompressedUnsigned<Nz::UInt32> entityId;
-				Nz::UInt8 animId;
-			};
-
-			Nz::UInt16 stateTick;
-			std::vector<Entity> entities;
-		};
-
 		DeclarePacket(PlayersInput)
 		{
 			Nz::UInt16 estimatedServerTick;
@@ -268,6 +271,17 @@ namespace bw
 
 		DeclarePacket(Ready)
 		{
+		};
+
+		DeclarePacket(TimeSyncRequest)
+		{
+			Nz::UInt8 requestId;
+		};
+
+		DeclarePacket(TimeSyncResponse)
+		{
+			Nz::UInt8 requestId;
+			Nz::UInt64 serverTime;
 		};
 
 #undef DeclarePacket
@@ -292,6 +306,8 @@ namespace bw
 		void Serialize(PacketSerializer& serializer, NetworkStrings& data);
 		void Serialize(PacketSerializer& serializer, PlayersInput& data);
 		void Serialize(PacketSerializer& serializer, Ready& data);
+		void Serialize(PacketSerializer& serializer, TimeSyncRequest& data);
+		void Serialize(PacketSerializer& serializer, TimeSyncResponse& data);
 
 		// Helpers
 		void Serialize(PacketSerializer& serializer, InputData& data);

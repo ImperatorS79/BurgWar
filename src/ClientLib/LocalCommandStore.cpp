@@ -32,14 +32,16 @@ namespace bw
 		IncomingCommand(MatchData);
 		IncomingCommand(MatchState);
 		IncomingCommand(NetworkStrings);
+		IncomingCommand(TimeSyncResponse);
 
 		// Outgoing commands
-		OutgoingCommand(Auth,                        Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(DownloadClientScriptRequest, Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(HelloWorld,                  Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(NetworkStrings,              Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(PlayersInput,                Nz::ENetPacketFlag_Reliable, 0);
-		OutgoingCommand(Ready,                       Nz::ENetPacketFlag_Reliable, 0);
+		OutgoingCommand(Auth,                        Nz::ENetPacketFlag_Reliable,   0);
+		OutgoingCommand(DownloadClientScriptRequest, Nz::ENetPacketFlag_Reliable,   0);
+		OutgoingCommand(HelloWorld,                  Nz::ENetPacketFlag_Reliable,   0);
+		OutgoingCommand(NetworkStrings,              Nz::ENetPacketFlag_Reliable,   0);
+		OutgoingCommand(PlayersInput,                Nz::ENetPacketFlag_Reliable,   0);
+		OutgoingCommand(Ready,                       Nz::ENetPacketFlag_Reliable,   0);
+		OutgoingCommand(TimeSyncRequest,             Nz::ENetPacketFlag_Unreliable, 0);
 
 #undef IncomingCommand
 #undef OutgoingCommand

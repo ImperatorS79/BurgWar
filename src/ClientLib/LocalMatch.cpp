@@ -36,7 +36,7 @@ namespace bw
 	SharedMatch(burgApp, matchData.tickDuration),
 	m_inputController(std::move(inputController)),
 	m_gamemodePath(matchData.gamemodePath),
-	m_currentServerTick(matchData.currentTick),
+	m_startServerTick(matchData.currentTick),
 	m_averageTickError(20),
 	m_application(burgApp),
 	m_session(session),
@@ -45,6 +45,8 @@ namespace bw
 	m_playerInputTimer(0.f)
 	{
 		assert(renderTarget);
+
+		m_startServerTime = matchData.appTime;
 
 		m_world.AddSystem<AnimationSystem>(burgApp);
 		m_world.AddSystem<PlayerMovementSystem>();
@@ -559,7 +561,14 @@ namespace bw
 
 	Nz::UInt16 LocalMatch::EstimateServerTick() const
 	{
-		return m_currentServerTick - m_averageTickError.GetAverageValue();
+		std::cout << "-----------------------------------" << std::endl;
+		std::cout << "Client tick: " << GetCurrentTick() << std::endl;
+		std::cout << "Server estimated app time: " << m_session.EstimateMatchTime() << std::endl;
+		std::cout << "Real app time: " << m_application.GetAppTime() << std::endl;
+		std::cout << "Diff: " << (m_session.EstimateMatchTime() - m_startServerTime) << std::endl;
+		std::cout << "Tick add: " << ((m_session.EstimateMatchTime() - m_startServerTime)* GetTickDuration()) << std::endl;
+		return m_startServerTick + (m_session.EstimateMatchTime() - m_startServerTime) * GetTickDuration();
+		//return m_currentServerTick - m_averageTickError.GetAverageValue();
 	}
 
 	void LocalMatch::HandleTickPacket(TickPacketContent&& packet)
@@ -1145,7 +1154,7 @@ namespace bw
 		if (m_gamemode)
 			m_gamemode->ExecuteCallback("OnTick");
 
-		m_currentServerTick++;
+		//m_startServerTick++;
 	}
 
 	void LocalMatch::PrepareClientUpdate()

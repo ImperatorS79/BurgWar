@@ -79,6 +79,7 @@ namespace bw
 		const Map& mapData = m_match.GetTerrain().GetMap();
 
 		Packets::MatchData matchData;
+		matchData.appTime = m_match.GetCurrentTime();
 		matchData.currentTick = m_match.GetCurrentTick();
 		matchData.gamemodePath = m_match.GetGamemodePath().generic_string();
 		matchData.tickDuration = m_match.GetTickDuration();
@@ -171,5 +172,14 @@ namespace bw
 	{
 		// HAAAAAX
 		GetVisibility().UpdateLayer(0);
+	}
+
+	void MatchClientSession::HandleIncomingPacket(const Packets::TimeSyncRequest& packet)
+	{
+		Packets::TimeSyncResponse response;
+		response.requestId = packet.requestId;
+		response.serverTime = m_match.GetCurrentTime();
+
+		SendPacket(response);
 	}
 }

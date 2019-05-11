@@ -175,7 +175,8 @@ namespace bw
 			Ndk::EntityHandle m_camera;
 			Ndk::World m_world;
 			Nz::SpriteRef m_trailSpriteTest;
-			Nz::UInt16 m_currentServerTick;
+			Nz::UInt16 m_startServerTick;
+			Nz::UInt64 m_startServerTime;
 			AnimationManager m_animationManager;
 			AverageValues<Nz::Int32> m_averageTickError;
 			BurgApp& m_application;

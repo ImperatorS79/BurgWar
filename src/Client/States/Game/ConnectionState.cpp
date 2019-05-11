@@ -9,6 +9,7 @@
 #include <Client/ClientApp.hpp>
 #include <Client/States/LoginState.hpp>
 #include <Client/States/Game/GameState.hpp>
+#include <Client/States/Game/TimeSyncState.hpp>
 #include <Nazara/Graphics/ColorBackground.hpp>
 #include <NDK/Systems/RenderSystem.hpp>
 #include <NDK/Widgets/LabelWidget.hpp>
@@ -29,7 +30,7 @@ namespace bw
 			auto gameState = std::make_shared<GameState>(GetStateDataPtr(), m_clientSession, matchData);
 			UpdateStatus("Entering game...", Nz::Color::Green * Nz::Color(128, 128, 128));
 
-			m_nextState = gameState;
+			m_nextState = std::make_shared<TimeSyncState>(GetStateDataPtr(), m_clientSession, gameState);
 			m_nextStateDelay = 1.f;
 
 			return gameState->GetMatch();

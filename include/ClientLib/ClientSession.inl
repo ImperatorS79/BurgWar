@@ -57,4 +57,9 @@ namespace bw
 		OnConnectionInfoUpdate(this, connectionInfo);
 		m_connectionInfo = connectionInfo;
 	}
+
+	inline void ClientSession::UpdateServerTimeDelta(Nz::UInt64 deltaTime)
+	{
+		m_deltaTime = deltaTime;
+	}
 }

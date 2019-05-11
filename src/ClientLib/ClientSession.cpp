@@ -170,6 +170,11 @@ namespace bw
 		m_stringStore.FillStore(packet.startId, packet.strings);
 	}
 
+	void ClientSession::HandleIncomingPacket(Packets::TimeSyncResponse&& packet)
+	{
+		OnTimeSyncResponse(this, packet);
+	}
+
 	void ClientSession::HandleIncomingPacket(Packets::EntitiesAnimation&& packet)
 	{
 		Nz::UInt16 stateTick = packet.stateTick;
