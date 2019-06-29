@@ -103,6 +103,7 @@ namespace bw
 			void HandleTickError(Nz::UInt16 serverTick, Nz::Int32 tickError);
 			void OnTick(bool lastTick) override;
 			void PrepareClientUpdate();
+			void PreparePredictionUpdate();
 			void PrepareTickUpdate();
 			void ProcessInputs(float elapsedTime);
 			void PushTickPacket(Nz::UInt16 tick, TickPacketContent&& packet);
@@ -167,13 +168,15 @@ namespace bw
 			{
 				std::optional<HealthData> health;
 				std::optional<NameData> name;
-				Ndk::EntityHandle serverGhost;
+				Ndk::EntityOwner serverGhost;
 				Ndk::EntityOwner entity;
 				Nz::RadianAnglef rotationError = 0.f;
 				Nz::Vector2f positionError = Nz::Vector2f::Zero();
+				Nz::Vector2f lastPredictedPosition;
 				Nz::UInt16 maxHealth;
 				Nz::UInt32 serverEntityId;
 				Nz::UInt32 weaponEntityId = NoWeapon;
+				bool disabledForPrediction = false;
 				bool isPhysical;
 				bool isLocalPlayerControlled = false;
 

@@ -865,39 +865,69 @@ namespace bw
 
 		auto& physicsSystem = world.GetSystem<Ndk::PhysicsSystem2D>();
 
+		for (auto it = m_serverEntityIdToClient.begin(); it != m_serverEntityIdToClient.end(); ++it)
+		{
+			ServerEntity& serverEntity = it.value();
+			if (!serverEntity.entity || !serverEntity.entity->IsEnabled())
+				continue;
+
+			serverEntity.disabledForPrediction = true;
+			serverEntity.entity->Disable();
+		}
+
 		for (auto&& entityData : packet.entities)
 		{
 			auto it = m_serverEntityIdToClient.find(entityData.id);
 			//assert(it != m_serverEntityIdToClient.end());
 			if (it == m_serverEntityIdToClient.end())
-				return;
+				continue;
 
 			ServerEntity& serverEntity = it.value();
 			if (!serverEntity.entity)
-				return;
+				continue;
 
-			bool isPredicted = false;
+#ifdef DEBUG_PREDICTION
+			if (serverEntity.entity->HasComponent<InputComponent>())
+			{
+				debugFile << "Burger position: " << entityData.position.y << "\n";
+				debugFile << "Burger velocity: " << entityData.physicsProperties->linearVelocity.y << "\n";
+			}
+#endif
 
+			serverEntity.disabledForPrediction = false;
+			serverEntity.entity->Enable();
+
+			if (serverEntity.isPhysical)
+			{
+				auto& entityPhys = serverEntity.entity->GetComponent<Ndk::PhysicsComponent2D>();
+			
+				serverEntity.lastPredictedPosition = entityPhys.GetPosition();
+
+				entityPhys.SetPosition(entityData.position);
+				entityPhys.SetRotation(entityData.rotation);
+				entityPhys.SetAngularVelocity(entityData.physicsProperties->angularVelocity);
+				entityPhys.SetVelocity(entityData.physicsProperties->linearVelocity);
+			}
+			else
+			{
+				auto& nodeComponent = serverEntity.entity->GetComponent<Ndk::NodeComponent>();
+				nodeComponent.SetPosition(entityData.position);
+				nodeComponent.SetRotation(entityData.rotation);
+			}
+
+#if 0
 			for (std::size_t playerIndex = 0; playerIndex < m_playerData.size(); ++playerIndex)
 			{
 				auto& controllerData = m_playerData[playerIndex];
 				if (controllerData.controlledEntityServerId == entityData.id && controllerData.controlledEntity)
 				{
-					isPredicted = true;
-
-#ifdef DEBUG_PREDICTION
-					if (serverEntity.entity->HasComponent<InputComponent>())
-					{
-						debugFile << "Burger position: " << entityData.position.y << "\n";
-						debugFile << "Burger velocity: " << entityData.physicsProperties->linearVelocity.y << "\n";
-					}
-#endif
 
 					m_prediction->RegisterForPrediction(controllerData.controlledEntity, [](const Ndk::EntityHandle& entity)
 					{
 						entity->AddComponent<InputComponent>();
 						entity->AddComponent<PlayerMovementComponent>();
-					}, [&](const Ndk::EntityHandle& /*sourceEntity*/, const Ndk::EntityHandle& targetEntity)
+					}, 
+					[&](const Ndk::EntityHandle& /*sourceEntity*/, const Ndk::EntityHandle& targetEntity)
 					{
 						auto& entityPhys = targetEntity->GetComponent<Ndk::PhysicsComponent2D>();
 						entityPhys.SetPosition(entityData.position);
@@ -944,10 +974,11 @@ namespace bw
 					nodeComponent.SetRotation(entityData.rotation);
 				}
 			}
+#endif
 		}
 
 		// Player entities and surrounding entities should be predicted
-		for (std::size_t playerIndex = 0; playerIndex < m_playerData.size(); ++playerIndex)
+		/*for (std::size_t playerIndex = 0; playerIndex < m_playerData.size(); ++playerIndex)
 		{
 			auto& controllerData = m_playerData[playerIndex];
 			if (controllerData.controlledEntity)
@@ -976,7 +1007,9 @@ namespace bw
 			}
 		}
 
-		m_prediction->DeleteUnregisteredEntities();
+		m_prediction->DeleteUnregisteredEntities();*/
+
+		PreparePredictionUpdate();
 
 		for (const PredictedInput& input : m_predictedInputs)
 		{
@@ -985,16 +1018,21 @@ namespace bw
 				auto& controllerData = m_playerData[i];
 				if (controllerData.controlledEntity)
 				{
-					const Ndk::EntityHandle& reconciliationEntity = m_prediction->GetEntity(controllerData.controlledEntity->GetId());
-					assert(reconciliationEntity);
+					const Ndk::EntityHandle& reconciliationEntity = controllerData.controlledEntity;
 
 					InputComponent& entityInputs = reconciliationEntity->GetComponent<InputComponent>();
 					const auto& playerInputData = input.inputs[i];
 					entityInputs.UpdateInputs(playerInputData.input);
 
+
 #ifdef DEBUG_PREDICTION
 					debugFile << "---- prediction (input tick: #" << input.serverTick << ", jumping: " << std::boolalpha << playerInputData.input.isJumping << ")\n";
 #endif
+
+					if (playerInputData.input.isJumping)
+					{
+						std::cout << "Jumoung" << std::endl;
+					}
 
 					if (playerInputData.movement)
 					{
@@ -1010,7 +1048,7 @@ namespace bw
 				}
 			}
 
-			m_prediction->Tick();
+			world.Update(GetTickDuration());
 
 #ifdef DEBUG_PREDICTION
 			for (std::size_t i = 0; i < m_playerData.size(); ++i)
@@ -1018,10 +1056,7 @@ namespace bw
 				auto& controllerData = m_playerData[i];
 				if (controllerData.controlledEntity)
 				{
-					const Ndk::EntityHandle& reconciliationEntity = m_prediction->GetEntity(controllerData.controlledEntity->GetId());
-					assert(reconciliationEntity);
-
-					auto& reconciliationPhys = reconciliationEntity->GetComponent<Ndk::PhysicsComponent2D>();
+					auto& reconciliationPhys = controllerData.controlledEntity->GetComponent<Ndk::PhysicsComponent2D>();
 
 					debugFile << "new position: " << reconciliationPhys.GetPosition().y << "\n";
 					debugFile << "new velocity: " << reconciliationPhys.GetVelocity().y << "\n";
@@ -1036,10 +1071,7 @@ namespace bw
 			auto& controllerData = m_playerData[i];
 			if (controllerData.controlledEntity)
 			{
-				const Ndk::EntityHandle& reconciliationEntity = m_prediction->GetEntity(controllerData.controlledEntity->GetId());
-				assert(reconciliationEntity);
-
-				auto& reconciliationPhys = reconciliationEntity->GetComponent<Ndk::PhysicsComponent2D>();
+				auto& reconciliationPhys = controllerData.controlledEntity->GetComponent<Ndk::PhysicsComponent2D>();
 
 				debugFile << "--\n";
 				debugFile << "final position: " << reconciliationPhys.GetPosition().y << "\n";
@@ -1048,8 +1080,42 @@ namespace bw
 		}
 #endif
 
+		for (auto&& entityData : packet.entities)
+		{
+			auto it = m_serverEntityIdToClient.find(entityData.id);
+			//assert(it != m_serverEntityIdToClient.end());
+			if (it == m_serverEntityIdToClient.end())
+				continue;
+
+			ServerEntity& serverEntity = it.value();
+			if (!serverEntity.entity)
+				continue;
+
+			if (serverEntity.isPhysical)
+			{
+				auto& realPhys = serverEntity.entity->GetComponent<Ndk::PhysicsComponent2D>();
+
+				Nz::Vector2f positionError = realPhys.GetPosition() - serverEntity.lastPredictedPosition;
+
+				if (positionError.GetSquaredLength() < Nz::IntegralPow(100, 2))
+					realPhys.SetPosition(Nz::Lerp(serverEntity.lastPredictedPosition, realPhys.GetPosition(), 0.1f));
+				else
+					std::cout << "Teleport!" << std::endl;
+			}
+		}
+
+		for (auto it = m_serverEntityIdToClient.begin(); it != m_serverEntityIdToClient.end(); ++it)
+		{
+			ServerEntity& serverEntity = it.value();
+			if (!serverEntity.disabledForPrediction)
+				continue;
+
+			serverEntity.disabledForPrediction = false;
+			serverEntity.entity->Enable();
+		}
+
 		// Apply back predicted entities states to main world
-		for (std::size_t i = 0; i < m_playerData.size(); ++i)
+		/*for (std::size_t i = 0; i < m_playerData.size(); ++i)
 		{
 			auto& controllerData = m_playerData[i];
 			if (controllerData.controlledEntity)
@@ -1086,7 +1152,7 @@ namespace bw
 					realNode.SetRotation(reconciliationNode.GetRotation());
 				}
 			}
-		}
+		}*/
 	}
 
 	void LocalMatch::HandleTickPacket(Packets::PlayerWeapons&& packet)
@@ -1230,6 +1296,21 @@ namespace bw
 		world.GetSystem<Ndk::RenderSystem>().Enable(true);
 		world.GetSystem<AnimationSystem>().Enable(true);
 		world.GetSystem<SoundSystem>().Enable(true);
+	}
+
+	void LocalMatch::PreparePredictionUpdate()
+	{
+		Ndk::World& world = m_world.GetWorld();
+
+		world.ForEachSystem([](Ndk::BaseSystem& system)
+		{
+			system.Enable(false);
+		});
+
+		world.GetSystem<Ndk::PhysicsSystem2D>().Enable(true);
+		world.GetSystem<Ndk::PhysicsSystem3D>().Enable(true);
+		world.GetSystem<Ndk::VelocitySystem>().Enable(true);
+		world.GetSystem<PlayerMovementSystem>().Enable(true);
 	}
 
 	void LocalMatch::PrepareTickUpdate()

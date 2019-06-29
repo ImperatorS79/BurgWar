@@ -71,8 +71,8 @@ namespace bw
 		if (!InitializeEntity(*entityClass, entity))
 			entity->Kill();
 
-		if (entity->HasComponent<Ndk::PhysicsComponent2D>())
-			entity->GetComponent<Ndk::PhysicsComponent2D>().EnableNodeSynchronization(false);
+		//if (entity->HasComponent<Ndk::PhysicsComponent2D>())
+		//	entity->GetComponent<Ndk::PhysicsComponent2D>().EnableNodeSynchronization(false);
 
 		return entity;
 	}
