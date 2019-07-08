@@ -12,6 +12,7 @@
 #include <NDK/Canvas.hpp>
 #include <NDK/Entity.hpp>
 #include <NDK/EntityOwner.hpp>
+#include <NDK/Widgets/ScrollAreaWidget.hpp>
 #include <NDK/Widgets/TextAreaWidget.hpp>
 
 namespace bw
@@ -25,8 +26,12 @@ namespace bw
 			~Chatbox();
 
 			void Clear();
+			inline void Close();
 
+			inline bool IsOpen() const;
 			inline bool IsTyping() const;
+
+			void Open(bool shouldOpen = true);
 
 			void PrintMessage(const std::string& message);
 
@@ -36,13 +41,12 @@ namespace bw
 			NazaraSignal(OnChatMessage, const std::string& /*message*/);
 
 		private:
-			void OnKeyPressed(const Nz::EventHandler* eventHandler, const Nz::WindowEvent::KeyEvent& event);
 			void OnRenderTargetSizeChange(const Nz::RenderTarget* renderTarget);
 
-			NazaraSlot(Nz::EventHandler, OnKeyPressed, m_onKeyPressedSlot);
 			NazaraSlot(Nz::RenderTarget, OnRenderTargetSizeChange, m_onTargetChangeSizeSlot);
 
 			std::vector<Nz::String> m_chatLines;
+			Ndk::ScrollAreaWidget* m_chatboxScrollArea;
 			Ndk::TextAreaWidget* m_chatBox;
 			Ndk::TextAreaWidget* m_chatEnteringBox;
 	};

@@ -15,6 +15,7 @@
 #include <CoreLib/Scripting/ScriptingContext.hpp>
 #include <CoreLib/Utility/AverageValues.hpp>
 #include <ClientLib/Chatbox.hpp>
+#include <ClientLib/Console.hpp>
 #include <ClientLib/LocalMatchPrediction.hpp>
 #include <ClientLib/Scripting/ClientEntityStore.hpp>
 #include <ClientLib/Scripting/ClientWeaponStore.hpp>
@@ -58,6 +59,7 @@ namespace bw
 			inline const Nz::SpriteRef& GetTrailSprite() const;
 			SharedWorld& GetWorld() override; //< Temporary (while we don't have layers)
 
+			void LoadScripts();
 			void LoadScripts(const std::shared_ptr<VirtualDirectory>& scriptDir);
 
 			void Update(float elapsedTime);
@@ -189,19 +191,24 @@ namespace bw
 				TickPacketContent content;
 			};
 
+			NazaraSlot(Ndk::Canvas, OnUnhandledKeyPressed, onUnhandledKeyPressed);
+
 			std::optional<ClientEntityStore> m_entityStore;
 			std::optional<ClientWeaponStore> m_weaponStore;
+			std::optional<Console> m_console;
 			std::optional<Debug> m_debug;
 			std::optional<LocalMatchPrediction> m_prediction;
 			std::shared_ptr<ClientGamemode> m_gamemode;
 			std::shared_ptr<ScriptingContext> m_scriptingContext;
 			std::shared_ptr<InputController> m_inputController;
+			std::shared_ptr<VirtualDirectory> m_scriptingDirectory;
 			std::string m_gamemodePath;
 			std::vector<PlayerData> m_playerData;
 			std::vector<PredictedInput> m_predictedInputs;
 			std::vector<TickPacket> m_tickedPackets;
 			std::vector<TickPrediction> m_tickPredictions;
 			tsl::hopscotch_map<Nz::UInt32 /*serverEntityId*/, ServerEntity /*clientEntity*/> m_serverEntityIdToClient;
+			Ndk::Canvas* m_canvas;
 			Ndk::EntityHandle m_camera;
 			Nz::RenderWindow* m_window;
 			Nz::SpriteRef m_trailSpriteTest;

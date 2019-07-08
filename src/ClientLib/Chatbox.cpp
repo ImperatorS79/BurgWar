@@ -4,18 +4,19 @@
 
 #include <ClientLib/Chatbox.hpp>
 #include <Nazara/Utility/Font.hpp>
+#include <NDK/Widgets.hpp>
 #include <iostream>
 
 namespace bw
 {
-	static constexpr std::size_t maxChatLines = 15;
+	static constexpr std::size_t maxChatLines = 100;
 
 	Chatbox::Chatbox(Nz::RenderWindow* window, Ndk::Canvas* canvas) :
-	m_chatLines(maxChatLines),
 	m_chatEnteringBox(nullptr)
 	{
 		m_chatBox = canvas->Add<Ndk::TextAreaWidget>();
 		m_chatBox->EnableBackground(false);
+		m_chatBox->EnableLineWrap(true);
 		m_chatBox->SetBackgroundColor(Nz::Color(0, 0, 0, 50));
 		m_chatBox->SetCharacterSize(20);
 		m_chatBox->SetTextColor(Nz::Color::White);
@@ -23,7 +24,8 @@ namespace bw
 		m_chatBox->SetTextOutlineThickness(1.f);
 		m_chatBox->SetReadOnly(true);
 
-		m_chatBox->Resize({ 480.f, float(maxChatLines * Nz::Font::GetDefault()->GetSizeInfo(m_chatBox->GetCharacterSize()).lineHeight) });
+		m_chatboxScrollArea = canvas->Add<Ndk::ScrollAreaWidget>(m_chatBox);
+		m_chatboxScrollArea->Resize({ 480.f, 0.f });
 
 		m_chatEnteringBox = canvas->Add<Ndk::TextAreaWidget>();
 		m_chatEnteringBox->EnableBackground(true);
@@ -31,10 +33,7 @@ namespace bw
 		m_chatEnteringBox->SetTextColor(Nz::Color::Black);
 		m_chatEnteringBox->Show(false);
 
-		Nz::EventHandler& eventHandler = window->GetEventHandler();
-
 		// Connect every slot
-		m_onKeyPressedSlot.Connect(eventHandler.OnKeyPressed, this, &Chatbox::OnKeyPressed);
 		m_onTargetChangeSizeSlot.Connect(window->OnRenderTargetSizeChange, this, &Chatbox::OnRenderTargetSizeChange);
 
 		OnRenderTargetSizeChange(window);
@@ -42,7 +41,7 @@ namespace bw
 
 	Chatbox::~Chatbox()
 	{
-		m_chatBox->Destroy();
+		m_chatboxScrollArea->Destroy();
 
 		if (m_chatEnteringBox)
 			m_chatEnteringBox->Destroy();
@@ -52,6 +51,31 @@ namespace bw
 	{
 		m_chatLines.clear();
 		m_chatBox->Clear();
+	}
+
+	void Chatbox::Open(bool shouldOpen)
+	{
+		if (IsOpen() != shouldOpen)
+		{
+			if (shouldOpen)
+			{
+				m_chatBox->EnableBackground(true);
+				m_chatboxScrollArea->EnableScrollbar(true);
+				m_chatEnteringBox->Show(true);
+				m_chatEnteringBox->SetFocus();
+			}
+			else
+			{
+				Nz::String text = m_chatEnteringBox->GetText();
+				m_chatBox->EnableBackground(false);
+				m_chatboxScrollArea->EnableScrollbar(false);
+				m_chatEnteringBox->Clear();
+				m_chatEnteringBox->Show(false);
+
+				if (!text.IsEmpty())
+					OnChatMessage(text.ToStdString());
+			}
+		}
 	}
 
 	void Chatbox::PrintMessage(const std::string& message)
@@ -65,29 +89,12 @@ namespace bw
 		m_chatBox->Clear();
 		for (const Nz::String& message : m_chatLines)
 			m_chatBox->AppendText(message + "\n");
-	}
 
-	void Chatbox::OnKeyPressed(const Nz::EventHandler* /*eventHandler*/, const Nz::WindowEvent::KeyEvent& event)
-	{
-		if (event.code == Nz::Keyboard::Return)
-		{
-			if (m_chatEnteringBox->IsVisible())
-			{
-				Nz::String text = m_chatEnteringBox->GetText();
-				m_chatBox->EnableBackground(false);
-				m_chatEnteringBox->Clear();
-				m_chatEnteringBox->Show(false);
+		m_chatBox->Resize({ m_chatBox->GetWidth(), m_chatBox->GetPreferredHeight() });
+		m_chatboxScrollArea->Resize(m_chatboxScrollArea->GetSize()); // force layout update
+		m_chatboxScrollArea->SetPosition({ 5.f, m_chatEnteringBox->GetPosition().y - m_chatboxScrollArea->GetHeight() - 5, 0.f });
 
-				if (!text.IsEmpty())
-					OnChatMessage(text.ToStdString());
-			}
-			else
-			{
-				m_chatBox->EnableBackground(true);
-				m_chatEnteringBox->Show(true);
-				m_chatEnteringBox->SetFocus();
-			}
-		}
+		m_chatboxScrollArea->ScrollToRatio(1.f);
 	}
 
 	void Chatbox::OnRenderTargetSizeChange(const Nz::RenderTarget* renderTarget)
@@ -96,7 +103,7 @@ namespace bw
 
 		m_chatEnteringBox->Resize({ size.x, 40.f });
 		m_chatEnteringBox->SetPosition({ 0.f, size.y - m_chatEnteringBox->GetHeight() - 5.f, 0.f });
-
-		m_chatBox->SetPosition({ 5.f, size.y - m_chatEnteringBox->GetHeight() - m_chatBox->GetHeight() - 5, 0.f });
+		m_chatboxScrollArea->Resize({ size.x / 3.f, size.y / 3.f });
+		m_chatboxScrollArea->SetPosition({ 5.f, m_chatEnteringBox->GetPosition().y - m_chatboxScrollArea->GetHeight() - 5, 0.f });
 	}
 }
