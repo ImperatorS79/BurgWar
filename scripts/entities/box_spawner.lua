@@ -25,7 +25,7 @@ if (SERVER) then
 		if (self.SpawnedBox) then
 			if (not self.SpawnedBox:IsValid() or not self.SpawnedBox:IsSleeping()) then
 				self.SpawnedBox = nil
-				self.NextRespawn = os.time() + self:GetProperty("respawntime")
+				self.NextRespawn = os.time() + 0.5
 			end
 		end
 
@@ -35,7 +35,7 @@ if (SERVER) then
 				LayerIndex = self:GetLayerIndex(),
 				Position = self:GetPosition() + Vec2(0, -10),
 				Properties = {
-					asleep = true,
+					--asleep = true,
 					size = 2
 				}
 			})

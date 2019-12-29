@@ -46,3 +46,7 @@ PropertyType = enums.Create({
 	String            = 15,
 	Texture           = 16
 })
+
+ReplicationType = enums.Create({
+	None -- Entity is not replicated client-side
+})

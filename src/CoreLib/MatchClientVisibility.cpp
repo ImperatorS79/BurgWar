@@ -3,8 +3,10 @@
 // For conditions of distribution and use, see copyright notice in LICENSE
 
 #include <CoreLib/MatchClientVisibility.hpp>
+#include <Nazara/Core/EmptyStream.hpp>
 #include <Nazara/Core/StackArray.hpp>
 #include <Nazara/Core/StackVector.hpp>
+#include <Nazara/Network/ENetProtocol.hpp>
 #include <CoreLib/Protocol/Packets.hpp>
 #include <CoreLib/MatchClientSession.hpp>
 #include <CoreLib/Terrain.hpp>
@@ -46,7 +48,7 @@ namespace bw
 				assert(m_layers.find(layerIndex) != m_layers.end());
 				Layer& layer = *m_layers[layerIndex];
 
-				if (!layer.visibleEntities.UnboundedTest(entityMovement.entityId))
+				if (layer.visibleEntities.find(entityMovement.entityId) == layer.visibleEntities.end())
 					return;
 
 				layer.staticMovementUpdateEvents[entityMovement.entityId] = entityMovement;
@@ -57,7 +59,7 @@ namespace bw
 				assert(m_layers.find(layerIndex) != m_layers.end());
 				Layer& layer = *m_layers[layerIndex];
 
-				if (!layer.visibleEntities.UnboundedTest(entityPlayAnimation.entityId))
+				if (layer.visibleEntities.find(entityPlayAnimation.entityId) == layer.visibleEntities.end())
 					return;
 
 				layer.playAnimationEvents[entityPlayAnimation.entityId] = entityPlayAnimation;
@@ -76,7 +78,7 @@ namespace bw
 				
 				for (std::size_t i = 0; i < entityCount; ++i)
 				{
-					if (!layer.visibleEntities.UnboundedTest(events[i].entityId))
+					if (layer.visibleEntities.find(events[i].entityId) == layer.visibleEntities.end())
 						continue;
 
 					layer.healthUpdateEvents[events[i].entityId] = events[i];
@@ -95,7 +97,7 @@ namespace bw
 					if (m_controlledEntities.find(entityKey) != m_controlledEntities.end())
 						continue;
 
-					if (!layer.visibleEntities.UnboundedTest(events[i].entityId))
+					if (layer.visibleEntities.find(events[i].entityId) == layer.visibleEntities.end())
 						continue;
 
 					layer.inputUpdateEvents[events[i].entityId] = events[i];
@@ -171,7 +173,7 @@ namespace bw
 				if (m_clientVisibleLayers.UnboundedTest(i))
 				{
 					for (const Ndk::EntityHandle& entity : syncSystem.GetEntities())
-						layer.visibleEntities.UnboundedSet(entity->GetId());
+						layer.visibleEntities.emplace(entity->GetId(), Layer::VisibleEntityData{});
 
 					continue;
 				}
@@ -180,7 +182,7 @@ namespace bw
 				{
 					for (std::size_t i = 0; i < entityCount; ++i)
 					{
-						if (!layer.visibleEntities.UnboundedTest(entitiesCreation[i].entityId))
+						if (layer.visibleEntities.find(entitiesCreation[i].entityId) == layer.visibleEntities.end())
 							pendingCreationMap[entitiesCreation[i].entityId] = entitiesCreation[i];
 					}
 				});
@@ -214,7 +216,7 @@ namespace bw
 					entityData.id = eventData->entityId;
 					FillEntityData(eventData.value(), entityData.data);
 
-					layer.visibleEntities.UnboundedSet(entityId);
+					layer.visibleEntities.emplace(entityId, Layer::VisibleEntityData{});
 
 					eventData.reset();
 				};
@@ -471,7 +473,7 @@ namespace bw
 			}
 			Layer& layer = *m_layers[layerId];
 
-			if (layer.visibleEntities.UnboundedTest(entityId))
+			if (layer.visibleEntities.find(entityId) != layer.visibleEntities.end())
 			{
 				auto& callbackVec = it.value();
 				for (auto&& func : callbackVec)
@@ -494,8 +496,17 @@ namespace bw
 
 			Layer& layer = *m_layers[it->layerIndex];
 
-			m_tempBitset.PerformsAND(layer.visibleEntities, it->entitiesId);
-			if (m_tempBitset == it->entitiesId)
+			bool allEntitiesVisible = true;
+			for (std::size_t i = it->entitiesId.FindFirst(); i != it->entitiesId.npos; i = it->entitiesId.FindNext(i))
+			{
+				if (layer.visibleEntities.find(Nz::UInt32(i)) == layer.visibleEntities.end())
+				{
+					allEntitiesVisible = false;
+					break;
+				}
+			}
+
+			if (allEntitiesVisible)
 			{
 				it->sendFunction();
 
@@ -511,7 +522,7 @@ namespace bw
 		assert(m_layers.find(layerIndex) != m_layers.end());
 		Layer& layer = *m_layers[layerIndex];
 		layer.creationEvents[eventData.entityId] = eventData;
-		layer.visibleEntities.UnboundedSet(eventData.entityId);
+		layer.visibleEntities.emplace(eventData.entityId, Layer::VisibleEntityData{});
 
 		m_pendingEvents.Set(VisibilityEventType::Creation);
 	}
@@ -544,11 +555,25 @@ namespace bw
 		layer.playAnimationEvents.erase(entityId);
 		layer.staticMovementUpdateEvents.erase(entityId);
 
-		layer.visibleEntities.UnboundedReset(entityId);
+		layer.visibleEntities.erase(entityId);
 	}
 
 	void MatchClientVisibility::SendMatchState()
 	{
+		// We're using a priority accumulator to prevent sending all entities everytime, stick below one UDP datagram
+		constexpr std::size_t MaxPacketSize = Nz::ENetConstants::ENetHost_DefaultMTU - sizeof(Nz::ENetProtocolHeader) - sizeof(Nz::ENetProtocolSendFragment);
+
+		auto HasExceededPacketSize = [&]() -> bool
+		{
+			Nz::EmptyStream emptyStream;
+			Nz::ByteStream byteStream(&emptyStream);
+
+			PacketSerializer serializer(byteStream, true);
+			Packets::Serialize(serializer, m_matchStatePacket);
+
+			return emptyStream.GetSize() > MaxPacketSize;
+		};
+
 		Terrain& terrain = m_match.GetTerrain();
 
 		m_matchStatePacket.entities.clear();
@@ -560,6 +585,9 @@ namespace bw
 			LayerIndex layerIndex = it.key();
 			auto& layer = *it.value();
 
+			auto& layerData = m_matchStatePacket.layers.emplace_back();
+			layerData.layerIndex = layerIndex;
+
 			std::size_t oldEntityCount = m_matchStatePacket.entities.size();
 
 			for (auto&& pair : layer.staticMovementUpdateEvents)
@@ -567,23 +595,32 @@ namespace bw
 
 			layer.staticMovementUpdateEvents.clear();
 
+			layerData.entityCount = m_matchStatePacket.entities.size() - oldEntityCount;
+
 			TerrainLayer& terrainLayer = terrain.GetLayer(layerIndex);
 			const NetworkSyncSystem& syncSystem = terrainLayer.GetWorld().GetSystem<NetworkSyncSystem>();
 
 			syncSystem.MoveEntities([&](const NetworkSyncSystem::EntityMovement* entitiesMovement, std::size_t entityCount)
 			{
 				for (std::size_t i = 0; i < entityCount; ++i)
+				{
 					BuildMovementPacket(m_matchStatePacket.entities.emplace_back(), entitiesMovement[i]);
+					layerData.entityCount = layerData.entityCount + 1;
+
+					if (HasExceededPacketSize())
+					{
+						layerData.entityCount = layerData.entityCount - 1;
+						m_matchStatePacket.entities.pop_back();
+						break;
+					}
+				}
 			});
 
-			std::size_t entityCount = m_matchStatePacket.entities.size() - oldEntityCount;
-			if (entityCount > 0)
-			{
-				auto& layerData = m_matchStatePacket.layers.emplace_back();
-				layerData.layerIndex = layerIndex;
-				layerData.entityCount = static_cast<Nz::UInt32>(entityCount);
-			}
+			if (layerData.entityCount == 0)
+				m_matchStatePacket.layers.pop_back();
 		}
+
+		bwLog(m_match.GetLogger(), LogLevel::Debug, "Entity count: {0}", m_matchStatePacket.entities.size());
 
 		m_session.SendPacket(m_matchStatePacket);
 	}

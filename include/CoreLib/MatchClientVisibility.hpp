@@ -80,7 +80,7 @@ namespace bw
 			void SendMatchState();
 
 			using EntityPacketSendFunction = std::function<void()>;
-			using PendingCreationEventMap = tsl::hopscotch_map<Nz::UInt64 /*entityId*/, std::optional<NetworkSyncSystem::EntityCreation>>;
+			using PendingCreationEventMap = tsl::hopscotch_map<Nz::UInt32 /*entityId*/, std::optional<NetworkSyncSystem::EntityCreation>>;
 
 			struct PendingLayerUpdate
 			{
@@ -97,7 +97,11 @@ namespace bw
 
 			struct Layer
 			{
-				Nz::Bitset<Nz::UInt64> visibleEntities;
+				struct VisibleEntityData
+				{
+					Nz::UInt8 priorityAccumulator = 0;
+				};
+
 				std::size_t visibilityCounter = 1;
 
 				PendingCreationEventMap creationEvents;
@@ -105,6 +109,7 @@ namespace bw
 				tsl::hopscotch_map<Nz::UInt32 /*entityId*/, NetworkSyncSystem::EntityHealth> healthUpdateEvents;
 				tsl::hopscotch_map<Nz::UInt32 /*entityId*/, NetworkSyncSystem::EntityMovement> staticMovementUpdateEvents;
 				tsl::hopscotch_map<Nz::UInt32 /*entityId*/, NetworkSyncSystem::EntityPlayAnimation> playAnimationEvents;
+				tsl::hopscotch_map<Nz::UInt32 /*entityId*/, VisibleEntityData> visibleEntities;
 				tsl::hopscotch_set<Nz::UInt32 /*entityId*/> deathEvents;
 				tsl::hopscotch_set<Nz::UInt32 /*entityId*/> destructionEvents;
 
@@ -117,7 +122,6 @@ namespace bw
 				NazaraSlot(NetworkSyncSystem, OnEntitiesInputUpdate,  onEntitiesInputUpdate);
 			};
 
-			Nz::Bitset<Nz::UInt64> m_tempBitset; //< For optimization purpose
 			Nz::Bitset<Nz::UInt64> m_newlyHiddenLayers;
 			Nz::Bitset<Nz::UInt64> m_newlyVisibleLayers;
 			Nz::Bitset<Nz::UInt64> m_clientVisibleLayers;
