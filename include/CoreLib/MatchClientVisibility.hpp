@@ -73,6 +73,14 @@ namespace bw
 			void Update();
 
 		private:
+			struct PriorityMovementData
+			{
+				Nz::UInt8 priorityAccumulator;
+				LayerIndex layerIndex;
+				NetworkSyncSystem::EntityMovement movementData;
+				bool staticEntity;
+			};
+
 			void BuildMovementPacket(Packets::MatchState::Entity& packetData, const NetworkSyncSystem::EntityMovement& eventData);
 			void FillEntityData(const NetworkSyncSystem::EntityCreation& creationEvent, Packets::Helper::EntityData& entityData);
 			void HandleEntityCreation(LayerIndex layerIndex, const NetworkSyncSystem::EntityCreation& eventData);
@@ -131,6 +139,7 @@ namespace bw
 			tsl::hopscotch_set<Nz::UInt64 /*layerId|entityId*/> m_controlledEntities;
 			std::vector<PendingLayerUpdate> m_pendingLayerUpdates;
 			std::vector<PendingMultipleEntities> m_multiplePendingEntitiesEvent;
+			std::vector<PriorityMovementData> m_priorityMovementData;
 			Match& m_match;
 			MatchClientSession& m_session;
 

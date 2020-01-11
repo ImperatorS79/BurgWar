@@ -565,37 +565,38 @@ namespace bw
 
 		auto HasExceededPacketSize = [&]() -> bool
 		{
-			Nz::EmptyStream emptyStream;
-			Nz::ByteStream byteStream(&emptyStream);
-
-			PacketSerializer serializer(byteStream, true);
-			Packets::Serialize(serializer, m_matchStatePacket);
-
-			return emptyStream.GetSize() > MaxPacketSize;
+			std::size_t size = Packets::EstimateSize(m_matchStatePacket);
+			return size > MaxPacketSize;
 		};
 
 		Terrain& terrain = m_match.GetTerrain();
 
-		m_matchStatePacket.entities.clear();
-		m_matchStatePacket.layers.clear();
-		m_matchStatePacket.stateTick = m_match.GetNetworkTick();
+		m_priorityMovementData.clear();
+		auto PushMovementData = [this](LayerIndex layerIndex, Nz::UInt8 priorityAccumulator, const NetworkSyncSystem::EntityMovement& movementData, bool isStatic)
+		{
+			m_priorityMovementData.push_back(PriorityMovementData{
+				priorityAccumulator,
+				layerIndex,
+				movementData,
+				isStatic
+			});
+		};
 
 		for (auto it = m_layers.begin(); it != m_layers.end(); ++it)
 		{
 			LayerIndex layerIndex = it.key();
 			auto& layer = *it.value();
 
-			auto& layerData = m_matchStatePacket.layers.emplace_back();
-			layerData.layerIndex = layerIndex;
-
-			std::size_t oldEntityCount = m_matchStatePacket.entities.size();
-
 			for (auto&& pair : layer.staticMovementUpdateEvents)
-				BuildMovementPacket(m_matchStatePacket.entities.emplace_back(), pair.second);
+			{
+				auto visibleIt = layer.visibleEntities.find(pair.first);
+				assert(visibleIt != layer.visibleEntities.end());
 
-			layer.staticMovementUpdateEvents.clear();
+				auto& visibleData = visibleIt.value();
+				visibleData.priorityAccumulator += 3; //< TODO use NetworkSyncComponent value
 
-			layerData.entityCount = m_matchStatePacket.entities.size() - oldEntityCount;
+				PushMovementData(layerIndex, visibleData.priorityAccumulator, pair.second, true);
+			}
 
 			TerrainLayer& terrainLayer = terrain.GetLayer(layerIndex);
 			const NetworkSyncSystem& syncSystem = terrainLayer.GetWorld().GetSystem<NetworkSyncSystem>();
@@ -604,23 +605,91 @@ namespace bw
 			{
 				for (std::size_t i = 0; i < entityCount; ++i)
 				{
-					BuildMovementPacket(m_matchStatePacket.entities.emplace_back(), entitiesMovement[i]);
-					layerData.entityCount = layerData.entityCount + 1;
+					auto& movementData = entitiesMovement[i];
 
-					if (HasExceededPacketSize())
-					{
-						layerData.entityCount = layerData.entityCount - 1;
-						m_matchStatePacket.entities.pop_back();
-						break;
-					}
+					auto visibleIt = layer.visibleEntities.find(movementData.entityId);
+					if (visibleIt == layer.visibleEntities.end())
+						continue;
+
+					auto& visibleData = visibleIt.value();
+					visibleData.priorityAccumulator += 1; //< TODO use NetworkSyncComponent value
+
+					PushMovementData(layerIndex, visibleData.priorityAccumulator, movementData, false);
 				}
 			});
-
-			if (layerData.entityCount == 0)
-				m_matchStatePacket.layers.pop_back();
 		}
 
-		bwLog(m_match.GetLogger(), LogLevel::Debug, "Entity count: {0}", m_matchStatePacket.entities.size());
+		std::sort(m_priorityMovementData.begin(), m_priorityMovementData.end(), [](const PriorityMovementData& lhs, const PriorityMovementData& rhs)
+		{
+			return lhs.priorityAccumulator > rhs.priorityAccumulator;
+		});
+
+		m_matchStatePacket.entities.clear();
+		m_matchStatePacket.layers.clear();
+		m_matchStatePacket.stateTick = m_match.GetNetworkTick();
+
+		for (PriorityMovementData& movementData : m_priorityMovementData)
+		{
+			std::size_t entityIndex = 0;
+			
+			std::size_t layerIndex = 0;
+			std::size_t layerCount = m_matchStatePacket.layers.size();
+			for (; layerIndex < layerCount; ++layerIndex)
+			{
+				auto& layer = m_matchStatePacket.layers[layerIndex];
+				entityIndex += layer.entityCount;
+
+				if (layer.layerIndex == movementData.layerIndex)
+				{
+					layer.entityCount++;
+					break;
+				}
+			}
+
+			// Has layer been found?
+			if (layerIndex == layerCount)
+			{
+				// No, insert it as a new one
+				auto& layer = m_matchStatePacket.layers.emplace_back();
+				layer.entityCount = 1;
+				layer.layerIndex = movementData.layerIndex;
+			}
+
+			assert(entityIndex <= m_matchStatePacket.entities.size());
+			auto entityIt = m_matchStatePacket.entities.emplace(m_matchStatePacket.entities.begin() + entityIndex);
+			BuildMovementPacket(*entityIt, movementData.movementData);
+
+			if (HasExceededPacketSize())
+			{
+				// Remove last inserted entity
+				m_matchStatePacket.entities.erase(entityIt);
+
+				auto& layer = m_matchStatePacket.layers[layerIndex];
+				if (--layer.entityCount == 0)
+				{
+					assert(layerIndex == layerCount);
+					m_matchStatePacket.layers.pop_back();
+				}
+
+				break;
+			}
+
+			auto layerIt = m_layers.find(movementData.layerIndex);
+			assert(layerIt != m_layers.end());
+
+			auto& layerData = *layerIt.value();
+
+			Nz::UInt32 entityId = Nz::UInt32(movementData.movementData.entityId);
+
+			auto visibleIt = layerData.visibleEntities.find(entityId);
+			assert(visibleIt != layerData.visibleEntities.end());
+
+			auto& visibleData = visibleIt.value();
+			visibleData.priorityAccumulator = 0;
+
+			if (movementData.staticEntity)
+				layerData.staticMovementUpdateEvents.erase(entityId);
+		}
 
 		m_session.SendPacket(m_matchStatePacket);
 	}
